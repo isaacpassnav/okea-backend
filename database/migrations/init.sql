@@ -1,7 +1,3 @@
--- ------------------------------------------------------------------
--- OKEA DB INIT (UTF8MB4, InnoDB, índices y constraints)
--- ------------------------------------------------------------------
--- Configuración inicial
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';
 
@@ -11,98 +7,88 @@ CREATE DATABASE IF NOT EXISTS okea_db
 
 USE okea_db;
 
-CREATE TABLE IF NOT EXISTS roles (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(50) NOT NULL UNIQUE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- ==========================
+-- BLOQUE 01 - WEB / E-COMMERCE
+-- ==========================
 
 CREATE TABLE IF NOT EXISTS usuarios (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
+  apellido VARCHAR(100) NOT NULL,
   email VARCHAR(100) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
   telefono VARCHAR(20) NULL,
-  direccion VARCHAR(255) NULL,
-  ciudad VARCHAR(100) NULL,
-  creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  actualizado_en TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  Activo TINYINT(1) NOT NULL DEFAULT 1,
   INDEX idx_usuarios_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS roles (
+  id_rol INT AUTO_INCREMENT PRIMARY KEY,
+  nombre_rol VARCHAR(50) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS usuarios_roles (
-  usuario_id INT NOT NULL,
-  rol_id INT NOT NULL,
-  PRIMARY KEY (usuario_id, rol_id),
-  CONSTRAINT fk_ur_user FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_ur_role FOREIGN KEY (rol_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE CASCADE
+  id_usuario INT NOT NULL,
+  id_rol INT NOT NULL,
+  PRIMARY KEY (id_usuario, id_rol),
+  CONSTRAINT fk_ur_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_ur_rol FOREIGN KEY (id_rol) REFERENCES roles(id_rol) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS categorias (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS direcciones (
+  id_direccion INT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario INT NOT NULL,
+  calle VARCHAR(255) NOT NULL,
+  ciudad VARCHAR(100) NOT NULL,
+  provincia VARCHAR(100) NULL,
+  codigo_postal VARCHAR(20) NULL,
+  pais VARCHAR(100) NULL,
+  CONSTRAINT fk_direcciones_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX idx_dir_usuario (id_usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ==========================
+-- BLOQUE 02 - ADMIN / GESTIÓN INTERNA
+-- ==========================
+
+-- Usuarios (Admin)
+CREATE TABLE IF NOT EXISTS usuarios_admin (
+  id_usuario INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
-  descripcion TEXT NULL,
-  UNIQUE (nombre)
+  apellido VARCHAR(100) NOT NULL,
+  email VARCHAR(100) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  telefono VARCHAR(20) NULL,
+  fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  Activo TINYINT(1) NOT NULL DEFAULT 1,
+  INDEX idx_admin_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS marcas (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(100) NOT NULL,
-  descripcion TEXT NULL,
-  UNIQUE (nombre)
+-- Roles (Admin)
+CREATE TABLE IF NOT EXISTS roles_admin (
+  id_rol INT AUTO_INCREMENT PRIMARY KEY,
+  nombre_rol VARCHAR(50) NOT NULL UNIQUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS productos (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(150) NOT NULL,
-  descripcion TEXT NULL,
-  precio DECIMAL(10,2) NOT NULL CHECK (precio >= 0),
-  stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
-  categoria_id INT NULL,
-  marca_id INT NULL,
-  creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_prod_categoria FOREIGN KEY (categoria_id) REFERENCES categorias(id),
-  CONSTRAINT fk_prod_marca FOREIGN KEY (marca_id) REFERENCES marcas(id),
-  INDEX idx_prod_categoria (categoria_id),
-  INDEX idx_prod_marca (marca_id)
+-- Usuarios - Roles (Admin)
+CREATE TABLE IF NOT EXISTS usuarios_roles_admin (
+  id_usuario INT NOT NULL,
+  id_rol INT NOT NULL,
+  PRIMARY KEY (id_usuario, id_rol),
+  CONSTRAINT fk_ura_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios_admin(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_ura_rol FOREIGN KEY (id_rol) REFERENCES roles_admin(id_rol) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- PEDIDOS
-CREATE TABLE IF NOT EXISTS pedidos (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  usuario_id INT NOT NULL,
-  fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  estado ENUM('pendiente','pagado','enviado','cancelado') NOT NULL DEFAULT 'pendiente',
-  CONSTRAINT fk_pedido_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
-  INDEX idx_pedido_usuario (usuario_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS detalle_pedido (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  pedido_id INT NOT NULL,
-  producto_id INT NOT NULL,
-  cantidad INT NOT NULL CHECK (cantidad > 0),
-  precio_unitario DECIMAL(10,2) NOT NULL CHECK (precio_unitario >= 0),
-  CONSTRAINT fk_dp_pedido FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
-  CONSTRAINT fk_dp_producto FOREIGN KEY (producto_id) REFERENCES productos(id),
-  INDEX idx_dp_pedido (pedido_id),
-  INDEX idx_dp_producto (producto_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- BANNERS
-CREATE TABLE IF NOT EXISTS banners (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  titulo VARCHAR(100) NULL,
-  imagen_url VARCHAR(255) NULL,
-  enlace_url VARCHAR(255) NULL,
-  activo BOOLEAN NOT NULL DEFAULT TRUE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- LOGS (auditoría)
+-- Logs (auditoría de seguridad)
 CREATE TABLE IF NOT EXISTS logs (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  usuario_id INT NULL,
+  id_log BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario INT NULL,
   accion VARCHAR(255) NOT NULL,
-  fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_logs_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
-  INDEX idx_logs_usuario (usuario_id)
+  descripcion TEXT NULL,
+  ip VARCHAR(45) NULL,
+  fecha_log TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_logs_usuario (id_usuario),
+  INDEX idx_logs_fecha (fecha_log),
+  CONSTRAINT fk_logs_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
